@@ -9,7 +9,9 @@
 #define NUM_FILES 8
 #define NUM_RANKS 8
 
-const std::unordered_set<char> piece_letters{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'};
+const char *START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const size_t FEN_BUF_SIZE = 91; // https://chess.stackexchange.com/questions/30004/longest-possible-fen Largest possible FEN string is 90 or possibly 87
+const std::unordered_set<char> PIECE_LETTERS{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'};
 
 FenClass::FenClass(char *fen_s) {
     /*
@@ -48,7 +50,7 @@ FenClass::FenClass(char *fen_s) {
     char *p;
     for (p = token; *p != '\0'; p += sizeof(char)) {
         // Piece letter
-        if (piece_letters.contains(*p)) {
+        if (PIECE_LETTERS.contains(*p)) {
             // j must be within array bounds
             if (j > NUM_FILES - 1) bad_tok(name, std::format("too many files on rank {}", 8 - i).c_str());
             // Put letter in piece_placements and increment j

@@ -3,7 +3,9 @@
 #include <unordered_set>
 #include "color.hpp"
 
-extern const std::unordered_set<char> piece_letters;
+extern const char *START_FEN;
+extern const size_t FEN_BUF_SIZE;
+extern const std::unordered_set<char> PIECE_LETTERS;
 
 class FenClass {
 public:

@@ -5,10 +5,6 @@
 #include "color.hpp"
 #include "fen.hpp"
 
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-// https://chess.stackexchange.com/questions/30004/longest-possible-fen Largest possible FEN string is 90 or possibly 87
-#define FEN_BUF_SIZE 91
-
 int main(int argc, char* argv[]) {
     // Get FEN string
     char fen_s[FEN_BUF_SIZE];
@@ -21,9 +17,9 @@ int main(int argc, char* argv[]) {
     } else std::strcpy(fen_s, START_FEN);
 
     FenClass fen_class(fen_s);
-    char fen_buf[FEN_BUF_SIZE];
-    fen_class.to_string(fen_buf, FEN_BUF_SIZE);
-    std::println("fen_buf = {}", fen_buf);
+    //char fen_buf[FEN_BUF_SIZE];
+    //fen_class.to_string(fen_buf, FEN_BUF_SIZE);
+    //std::println("fen_buf = {}", fen_buf);
 
     return 0;
 
