@@ -17,9 +17,10 @@ int main(int argc, char* argv[]) {
     } else std::strcpy(fen_s, START_FEN);
 
     FenClass fen_class(fen_s);
-    char fen_buf[FEN_BUF_SIZE];
-    fen_class.to_string(fen_buf, FEN_BUF_SIZE);
-    std::println("fen_buf = {}\nlength = {}\nSTART_FEN length = {}", static_cast<char*>(fen_buf), std::strlen(fen_buf), std::strlen(START_FEN));
+    size_t buf_size = FEN_BUF_SIZE;
+    char fen_buf[buf_size];
+    fen_class.to_string(fen_buf, buf_size);
+    std::println("fen_buf = {}", static_cast<char*>(fen_buf));
 
     return 0;
 

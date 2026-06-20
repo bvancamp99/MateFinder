@@ -1,4 +1,1 @@
-./main 4k2r/6r1/8/8/8/8/3R4/R3K3 w Qk - 0 1
-Invalid active color for FEN string! Reason: nullptr
-
 Construct a std::string to return instead of using parameter char[] buffer in FenClass::to_string

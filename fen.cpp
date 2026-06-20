@@ -77,13 +77,6 @@ FenClass::FenClass(char *fen_s) {
     if (i < NUM_RANKS - 1) bad_tok(name, "too few ranks");
     else if (j < NUM_FILES) bad_tok(name, "too few files on rank 1");
 
-    for (int i = 0; i < NUM_RANKS; i++) {
-        for (int j = 0; j < NUM_FILES; j++) {
-            std::print("{}", this->piece_placement[i][j]);
-        }
-        std::println();
-    }
-
     /* ACTIVE COLOR */
     
     name = "active color";
