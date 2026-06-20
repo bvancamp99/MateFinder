@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -75,6 +76,13 @@ FenClass::FenClass(char *fen_s) {
     // Check if full piece placement token was given
     if (i < NUM_RANKS - 1) bad_tok(name, "too few ranks");
     else if (j < NUM_FILES) bad_tok(name, "too few files on rank 1");
+
+    for (int i = 0; i < NUM_RANKS; i++) {
+        for (int j = 0; j < NUM_FILES; j++) {
+            std::print("{}", this->piece_placement[i][j]);
+        }
+        std::println();
+    }
 
     /* ACTIVE COLOR */
     
@@ -196,6 +204,11 @@ FenClass::FenClass(char *fen_s) {
 }
 
 void FenClass::to_string(char *dest_buf, size_t buf_size) {
+    /* TODO: test */
+
+    // buf_size must be at minimum the size defined in header file
+    assert(buf_size >= FEN_BUF_SIZE);
+
     int buf_i = 0;
 
     /* PIECE PLACEMENT */
@@ -247,5 +260,21 @@ void FenClass::to_string(char *dest_buf, size_t buf_size) {
 
     /* HALFMOVE CLOCK */
 
-    // TODO: complete halfmove clock and fullmove number
+    std::string hc_str = std::to_string(this->halfmove_clock);
+    for (char& hc_c: hc_str) {
+        dest_buf[buf_i++] = hc_c;
+    }
+    dest_buf[buf_i++] = ' ';
+
+    /* FULLMOVE NUMBER */
+    std::string fn_str = std::to_string(this->fullmove_number);
+    for (char& fn_c: fn_str) {
+        dest_buf[buf_i++] = fn_c;
+    }
+
+    // Don't forget the null terminator!
+    dest_buf[buf_i] = '\0';
+
+    // buf_i must not have exceeded buf_size - 1
+    assert(buf_i < buf_size);
 }
