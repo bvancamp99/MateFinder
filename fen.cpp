@@ -49,7 +49,7 @@ FenClass::FenClass(char *fen_s) {
     int i = 0; // rank index
     int j = 0; // file index
     char *p;
-    for (p = token; *p != '\0'; p += sizeof(char)) {
+    for (p = token; *p != '\0'; p++) {
         // Piece letter
         if (PIECE_LETTERS.contains(*p)) {
             // j must be within array bounds
@@ -127,7 +127,7 @@ FenClass::FenClass(char *fen_s) {
         if (!cr_letters.contains(*token)) bad_tok(name, std::format("invalid character '{}'", *token).c_str());
         else this->castling_rights[0] = *token;
         char last_c = *token;
-        for (p = token + sizeof(char); *p != '\0'; p += sizeof(char)) {
+        for (p = token + 1; *p != '\0'; p++) {
             // Check character in cr_letters
             if (!cr_letters.contains(*p)) bad_tok(name, std::format("invalid character '{}'", *p).c_str());
             // Are there duplicates?
@@ -135,12 +135,12 @@ FenClass::FenClass(char *fen_s) {
             // Are castling rights sorted?
             else if (*p < last_c) bad_tok(name, std::format("wrong order for character '{}'", *p).c_str());
             // Set current castling_rights index
-            else this->castling_rights[(p - token) / sizeof(char)] = *p;
+            else this->castling_rights[p - token] = *p;
             // Update last_c
             last_c = *p;
         }
         // Don't forget to set null terminator!
-        this->castling_rights[(p - token) / sizeof(char)] = *p;
+        this->castling_rights[p - token] = *p;
     }
 
     /* EN PASSANT TARGET */
