@@ -1,1 +1,1 @@
-Construct a std::string to return instead of using parameter char[] buffer in FenClass::to_string
+

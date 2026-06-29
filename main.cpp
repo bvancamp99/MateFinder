@@ -7,20 +7,16 @@
 
 int main(int argc, char* argv[]) {
     // Get FEN string
-    char fen_s[FEN_BUF_SIZE];
+    std::string fen_s;
     if (argc > 1) {
-        if (std::strlen(argv[1]) < FEN_BUF_SIZE) std::strcpy(fen_s, argv[1]);
+        if (std::strlen(argv[1]) < FEN_BUF_SIZE) { fen_s = argv[1]; }
         else {
             std::println("FEN string too large!");
             exit(1);
         }
-    } else std::strcpy(fen_s, START_FEN);
+    } else { fen_s = START_FEN; }
 
     FenClass fen_class(fen_s);
-    size_t buf_size = FEN_BUF_SIZE;
-    char fen_buf[buf_size];
-    fen_class.to_string(fen_buf, buf_size);
-    std::println("fen_buf = {}", static_cast<char*>(fen_buf));
 
     return 0;
 

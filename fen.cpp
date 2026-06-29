@@ -1,273 +1,294 @@
-#include <cassert>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <format>
 #include <print>
 #include <string>
+#include "error.hpp"
 #include "fen.hpp"
 
-#define NUM_FILES 8
-#define NUM_RANKS 8
-
-const char *START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const size_t FEN_BUF_SIZE = 91; // https://chess.stackexchange.com/questions/30004/longest-possible-fen Largest possible FEN string is 90 or possibly 87
 const std::unordered_set<char> PIECE_LETTERS{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'};
+const std::unordered_set<char> CR_LETTERS{'K', 'Q', 'k', 'q'};
 
-FenClass::FenClass(char *fen_s) {
-    /*
-    Validates the contents of parameter FEN string and sets their values to the class members.
-    */
+void FenClass::set_piece_placement(std::string const& fen, size_t delim_pos) {
+	// Is there a token?
+	if (delim_pos == std::string::npos) { ERROR("space delimiter not found"); }
 
-    // Lambda expression to print errors and exit
-    auto bad_tok = [](std::string name, const char *reason) {
-        std::println("Invalid {} for FEN string! Reason: {}", name, reason);
-        exit(1);
-    };
+	// Correct size?
+	size_t min_pp = 17; // e.g. 8/8/8/8/8/8/k7/K7
+	size_t max_pp = 71; // 64 piece letters + 7 '/' characters
+	if (delim_pos < min_pp) { ERROR("too short"); }
+	else if (delim_pos > max_pp) { ERROR("too long"); }
 
-    // Declaring vars for std::strtok and error handling
-    std::string name;
-    const char *delim = " ";
-    char *token;
+	// Set piece_placement while validating substring contents
 
-    /* PIECE PLACEMENT */
-    
-    name = "piece placement";
-    token = std::strtok(fen_s, delim);
+	int i = 0; // rank index
+	int j = 0; // file index
+	for (size_t pp_i = 0; pp_i < delim_pos; pp_i++) {
+		char pp_c = fen[pp_i];
 
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
+		// Piece letter
+		if (PIECE_LETTERS.contains(pp_c)) {
+			// Must not be beyond end of current rank
+			if (j >= NUM_FILES) { ERROR(std::format("too many files on rank {}", 8 - i)); }
 
-    // Is piece placement the right size?
-    size_t tok_len = std::strlen(token);
-    size_t min_len = 17; // Length of minimum-size piece placement: 8/8/8/8/8/8/k7/K7
-    size_t max_len = 71; // 64 piece letters + 7 '/' characters
-    if (tok_len < min_len) bad_tok(name, "too short");
-    else if (tok_len > max_len) bad_tok(name, "too long");
+			// Put letter in piece_placements
+			this->piece_placement[i][j++] = pp_c;
 
-    // Set piece_placement while validating token contents
-    int i = 0; // rank index
-    int j = 0; // file index
-    char *p;
-    for (p = token; *p != '\0'; p++) {
-        // Piece letter
-        if (PIECE_LETTERS.contains(*p)) {
-            // j must be within array bounds
-            if (j > NUM_FILES - 1) bad_tok(name, std::format("too many files on rank {}", 8 - i).c_str());
-            // Put letter in piece_placements and increment j
-            this->piece_placement[i][j++] = *p;
-        // Number
-        } else if (std::isdigit(static_cast<int>(*p))) {
-            // Add to j by number
-            j += *p - '0';
-            // j must be <= NUM_FILES after adding
-            if (j > NUM_FILES) bad_tok(name, std::format("too many files on rank {}", 8 - i).c_str());
-        // '/' end of rank
-        } else if (*p == '/') {
-            // j must be = NUM_FILES
-            if (j < NUM_FILES) bad_tok(name, std::format("too few files on rank {}", 8 - i).c_str());
-            // Increment i, must be within array bounds
-            if (++i > NUM_RANKS - 1) bad_tok(name, "too many ranks, i.e. '/' characters");
-            // Reset j to begin next rank
-            j = 0;
-        // Anything else is invalid
-        } else bad_tok(name, std::format("invalid character '{}'", *p).c_str());
-    }
-    // Check if full piece placement token was given
-    if (i < NUM_RANKS - 1) bad_tok(name, "too few ranks");
-    else if (j < NUM_FILES) bad_tok(name, "too few files on rank 1");
+		// Number
+		} else if (std::isdigit(static_cast<int>(pp_c))) {
+			int j_after = j + (pp_c - '0');
 
-    /* ACTIVE COLOR */
-    
-    name = "active color";
-    token = std::strtok(nullptr, delim);
+			// Must not go more than one space past the end of current rank
+			if (j_after > NUM_FILES) { ERROR(std::format("too many files on rank {}", 8 - i)); }
 
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
+			// Put null char for every empty space
+			while (j < j_after) { this->piece_placement[i][j++] = '\0'; }
 
-    // Is active color too long?
-    if (std::strlen(token) > 1) bad_tok(name, "too long");
+		// '/' end of rank
+		} else if (pp_c == '/') {
+			// Must be exactly one space past the end of current rank
+			if (j != NUM_FILES) { ERROR(std::format("incorrect number of files on rank {}", 8 - i)); }
 
-    // Is active color 'w' or 'b'?
-    else if (*token != 'w' && *token != 'b') bad_tok(name, "must be 'w' or 'b'");
+			// Can't be at the final rank
+			if (++i >= NUM_RANKS) { ERROR("too many ranks, i.e. '/' characters"); }
 
-    // Set active_color
-    this->active_color = *token;
+			// Reset j to begin next rank
+			j = 0;
 
-    /* CASTLING RIGHTS */
-    
-    name = "castling rights";
-    token = std::strtok(nullptr, delim);
-
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
-
-    // Are castling rights too long?
-    tok_len = std::strlen(token);
-    if (tok_len > 4) bad_tok(name, "too long");
-
-    // Set castling_rights while validating token contents
-    std::unordered_set<char> cr_letters{'K', 'Q', 'k', 'q'};
-    if (tok_len == 1) {
-        // '-' or in cr_letters?
-        if (*token != '-' && !cr_letters.contains(*token)) bad_tok(name, std::format("invalid character '{}'", *p).c_str());
-        else {
-            this->castling_rights[0] = *token;
-            this->castling_rights[1] = '\0';
-        }
-    } else {
-        // Check first character in cr_letters, then store it
-        if (!cr_letters.contains(*token)) bad_tok(name, std::format("invalid character '{}'", *token).c_str());
-        else this->castling_rights[0] = *token;
-        char last_c = *token;
-        for (p = token + 1; *p != '\0'; p++) {
-            // Check character in cr_letters
-            if (!cr_letters.contains(*p)) bad_tok(name, std::format("invalid character '{}'", *p).c_str());
-            // Are there duplicates?
-            else if (*p == last_c) bad_tok(name, std::format("duplicate character '{}'", *p).c_str());
-            // Are castling rights sorted?
-            else if (*p < last_c) bad_tok(name, std::format("wrong order for character '{}'", *p).c_str());
-            // Set current castling_rights index
-            else this->castling_rights[p - token] = *p;
-            // Update last_c
-            last_c = *p;
-        }
-        // Don't forget to set null terminator!
-        this->castling_rights[p - token] = *p;
-    }
-
-    /* EN PASSANT TARGET */
-
-    name = "en passant target";
-    token = std::strtok(nullptr, delim);
-
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
-
-    // Is en passant target too long?
-    tok_len = std::strlen(token);
-    if (tok_len > 2) bad_tok(name, "too long");
-
-    // Is en passant target a hyphen or valid square?
-    if (tok_len == 1) {
-        if (*token != '-') bad_tok(name, "one-length string must be '-'");
-    } else if (token[0] < 'a' || token[0] > 'h' || (token[1] != '4' && token[1] != '5')) bad_tok(name, "two-length string must be valid square, e.g. \"e4\"");
-
-    // Set en_passant_target
-    std::strcpy(this->en_passant_target, token);
-
-    /* HALFMOVE CLOCK */
-
-    name = "halfmove clock";
-    token = std::strtok(nullptr, delim);
-
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
-
-    // Is halfmove clock an integer?
-    char *end;
-    long halfmove_clock = std::strtol(token, &end, 10);
-    if (end == token) bad_tok(name, "can't convert string to integer");
-    else if (*end != '\0') bad_tok(name, std::format("non-integer character '{}'", *end).c_str());
-
-    // Is halfmove clock between 0 and 100?
-    if (halfmove_clock < 0 || halfmove_clock > 100) bad_tok(name, "must be between 0 and 100 inclusive");
-
-    // Set halfmove_clock
-    this->halfmove_clock = halfmove_clock;
-
-    /* FULLMOVE NUMBER */
-
-    name = "fullmove number";
-    token = std::strtok(nullptr, delim);
-
-    // Is there a token?
-    if (token == nullptr) bad_tok(name, "nullptr");
-
-    // Is fullmove number an integer?
-    long fullmove_number = std::strtol(token, &end, 10);
-    if (end == token) bad_tok(name, "can't convert string to integer");
-    else if (*end != '\0') bad_tok(name, std::format("non-integer character '{}'", *end).c_str());
-
-    // Is fullmove number at least 1?
-    if (fullmove_number < 1) bad_tok(name, "must be at least 1");
-
-    // Set fullmove_number
-    this->fullmove_number = fullmove_number;
+		// Any other character is invalid
+		} else { ERROR(std::format("invalid character '{}'", pp_c)); }
+	}
+	// Check that i and j made it to the expected end
+	if (i < NUM_RANKS - 1) { ERROR("too few ranks"); }
+	else if (j < NUM_FILES) { ERROR("too few files on rank 1"); }
 }
 
-void FenClass::to_string(char *dest_buf, size_t buf_size) {
-    /* TODO: test */
+void FenClass::set_active_color(std::string const& fen, size_t begin_pos, size_t delim_pos) {
+	// Is there a token?
+	if (delim_pos == std::string::npos) { ERROR("space delimiter not found"); }
 
-    // buf_size must be at minimum the size defined in header file
-    assert(buf_size >= FEN_BUF_SIZE);
+	// Is active color too long?
+	if (delim_pos - begin_pos != 1) { ERROR("too long"); }
 
-    int buf_i = 0;
+	// Is active color 'w' or 'b'?
+	char color = fen[begin_pos];
+	if (color != 'w' && color != 'b') { ERROR("must be 'w' or 'b'"); }
 
-    /* PIECE PLACEMENT */
+	this->active_color = color;
+}
 
-    int empty_counter = 0;
+void FenClass::set_castling_rights(std::string const& fen, size_t begin_pos, size_t delim_pos) {
+	// Is there a token?
+	if (delim_pos == std::string::npos) { ERROR("space delimiter not found"); }
+
+	// Are castling rights too long?
+	size_t cr_size = delim_pos - begin_pos;
+	if (cr_size > 4) { ERROR("too long"); }
+
+	// Set castling_rights while validating substring contents
+
+	char cr_c = fen[begin_pos];
+
+	if (cr_size == 1) {
+		if (cr_c == '-' || CR_LETTERS.contains(cr_c)) { this->castling_rights[0] = cr_c; }
+		else { ERROR(std::format("invalid character '{}'", cr_c)); }
+	} else {
+		// Validate first character
+		if (CR_LETTERS.contains(cr_c)) { this->castling_rights[0] = cr_c; }
+		else { ERROR(std::format("invalid character '{}'", cr_c)); }
+
+		// Loop remaining characters
+		char last_c = cr_c;
+		for (int cr_i = 1; cr_i < cr_size; cr_i++) {
+			cr_c = fen[begin_pos + cr_i];
+			if (CR_LETTERS.contains(cr_c)) {
+				// Duplicates?
+				if (cr_c == last_c) { ERROR(std::format("duplicate character '{}'", cr_c)); }
+
+				// Sorted?
+				else if (cr_c < last_c) { ERROR(std::format("wrong order for character '{}'", cr_c)); }
+
+				// Put in array
+				else { this->castling_rights[cr_i] = cr_c; }
+			}
+			else { ERROR(std::format("invalid character '{}'", cr_c)); }
+		}
+	}
+	this->castling_rights[cr_size] = '\0';
+}
+
+void FenClass::set_en_passant_target(std::string const& fen, size_t begin_pos, size_t delim_pos) {
+	// Is there a token?
+	if (delim_pos == std::string::npos) { ERROR("space delimiter not found"); }
+
+	// Is en passant target too long?
+	size_t ept_size = delim_pos - begin_pos;
+	if (ept_size > 2) { ERROR("too long"); }
+
+	// Set en_passant_target while validating substring contents
+
+	char ept_c = fen[begin_pos];
+
+	if (ept_size == 2) {
+		// File
+		if (ept_c >= 'a' && ept_c <= 'h') { this->en_passant_target[0] = ept_c; }
+		else { ERROR(std::format("invalid 1st character '{}', must be between 'a' and 'h'", ept_c)); }
+		
+		// Rank
+		ept_c = fen[begin_pos+1];
+		if (ept_c == '4' || ept_c == '5') { this->en_passant_target[1] = ept_c; }
+		else { ERROR(std::format("invalid 2nd character '{}', must be '4' or '5'", ept_c)); }
+	} else {
+		// '-'
+		if (ept_c == '-') { this->en_passant_target[0] = ept_c; }
+		else { ERROR(std::format("invalid character '{}', must be '-' if one character", ept_c)); }
+	}
+	this->en_passant_target[ept_size] = '\0';
+}
+
+void FenClass::set_halfmove_clock(std::string const& fen, size_t begin_pos, size_t delim_pos) {
+	// Is there a token?
+	if (delim_pos == std::string::npos) { ERROR("space delimiter not found"); }
+
+	// Is halfmove clock too long? MAX 100
+	if (delim_pos - begin_pos > 3) { ERROR("too long"); }
+
+	// Set halfmove_clock while validating substring contents
+
+	size_t cur_pos = begin_pos;
+	char hc_c;
+	this->halfmove_clock = 0;
+
+	while (cur_pos < delim_pos) {
+		hc_c = fen[cur_pos++];
+		if (std::isdigit(hc_c)) { this->halfmove_clock = this->halfmove_clock * 10 + (hc_c - '0'); }
+		else { ERROR(std::format("non-digit character '{}'", hc_c)); }
+	}
+}
+
+void FenClass::set_fullmove_number(std::string const& fen, size_t begin_pos) {
+	// Is there a token?
+	if (begin_pos >= fen.size()) { ERROR("no token found"); }
+
+	// Is fullmove number too long? MAX 9999
+	if (fen.size() - begin_pos > 4) { ERROR("too long"); }
+
+	// Set fullmove_number while validating substring contents
+
+	size_t cur_pos = begin_pos;
+	char fn_c;
+	this->fullmove_number = 0;
+
+	while (cur_pos < fen.size()) {
+		fn_c = fen[cur_pos++];
+		if (std::isdigit(fn_c)) { this->fullmove_number = this->fullmove_number * 10 + (fn_c - '0'); }
+		else { ERROR(std::format("non-digit character '{}'", fn_c)); }
+	}
+
+	if (this->fullmove_number < 1) { ERROR("less than 1"); }
+}
+
+/*
+TODO: test more thoroughly
+*/
+FenClass::FenClass(std::string const& fen) {
+	char delim = ' ';
+	size_t begin_pos;
+	size_t delim_pos;
+
+	// Piece placement
+	delim_pos = fen.find(delim, 0);
+	this->set_piece_placement(fen, delim_pos);
+
+	// Active color
+	begin_pos = delim_pos + 1;
+	delim_pos = fen.find(delim, begin_pos);
+	this->set_active_color(fen, begin_pos, delim_pos);
+
+	// Castling rights
+	begin_pos = delim_pos + 1;
+	delim_pos = fen.find(delim, begin_pos);
+	this->set_castling_rights(fen, begin_pos, delim_pos);
+
+	// En passant target
+	begin_pos = delim_pos + 1;
+	delim_pos = fen.find(delim, begin_pos);
+	this->set_en_passant_target(fen, begin_pos, delim_pos);
+
+	// Halfmove clock
+	begin_pos = delim_pos + 1;
+	delim_pos = fen.find(delim, begin_pos);
+	this->set_halfmove_clock(fen, begin_pos, delim_pos);
+
+	// Fullmove number
+	begin_pos = delim_pos + 1;
+	this->set_fullmove_number(fen, begin_pos);
+}
+
+/*
+TODO: test
+*/
+std::string FenClass::to_string() {
+	// Initialize string with sufficient reserved memory
+	std::string fen;
+	fen.reserve(FEN_BUF_SIZE);
+
+	// Piece placement
+
+	int empty_counter = 0;
     for (int pp_i = 0; pp_i < NUM_RANKS; pp_i++) {
         for (int pp_j = 0; pp_j < NUM_FILES; pp_j++) {
             char pp_c = this->piece_placement[pp_i][pp_j];
-            if (pp_c == '\0') empty_counter++;
+            if (pp_c == '\0') { empty_counter++; }
             else {
                 // Record then reset empty counter if > 0
                 if (empty_counter > 0) {
-                    dest_buf[buf_i++] = empty_counter + '0';
+                	fen += empty_counter + '0';
                     empty_counter = 0;
                 }
                 // Record piece letter
-                dest_buf[buf_i++] = pp_c;
+                fen += pp_c;
             }
         }
         // Record then reset empty counter if > 0
         if (empty_counter > 0) {
-            dest_buf[buf_i++] = empty_counter + '0';
+            fen += empty_counter + '0';
             empty_counter = 0;
         }
         // Record a slash to end the row
-        dest_buf[buf_i++] = '/';
+        fen += '/';
     }
     // Replace last slash with a space
-    dest_buf[buf_i - 1] = ' ';
+    fen.back() = ' ';
 
-    /* ACTIVE COLOR */
+	// Active color
+	fen += this->active_color;
+	fen += ' ';
 
-    dest_buf[buf_i++] = this->active_color;
-    dest_buf[buf_i++] = ' ';
+	// Castling rights
+	fen += this->castling_rights;
+	fen += ' ';
 
-    /* CASTLING RIGHTS */
+	// En passant target
+	fen += this->en_passant_target;
+	fen += ' ';
 
-    for (int cr_i = 0; this->castling_rights[cr_i] != '\0'; cr_i++) {
-        dest_buf[buf_i++] = this->castling_rights[cr_i];
-    }
-    dest_buf[buf_i++] = ' ';
+	// Halfmove clock
+	fen += std::to_string(this->halfmove_clock);
+	fen += ' ';
 
-    /* EN PASSANT TARGET */
+	// Fullmove number
+	fen += std::to_string(this->fullmove_number);
 
-    for (int ept_i = 0; this->en_passant_target[ept_i] != '\0'; ept_i++) {
-        dest_buf[buf_i++] = this->en_passant_target[ept_i];
-    }
-    dest_buf[buf_i++] = ' ';
+	return fen;
+}
 
-    /* HALFMOVE CLOCK */
-
-    std::string hc_str = std::to_string(this->halfmove_clock);
-    for (char& hc_c: hc_str) {
-        dest_buf[buf_i++] = hc_c;
-    }
-    dest_buf[buf_i++] = ' ';
-
-    /* FULLMOVE NUMBER */
-    std::string fn_str = std::to_string(this->fullmove_number);
-    for (char& fn_c: fn_str) {
-        dest_buf[buf_i++] = fn_c;
-    }
-
-    // Don't forget the null terminator!
-    dest_buf[buf_i] = '\0';
-
-    // buf_i must not have exceeded buf_size - 1
-    assert(buf_i < buf_size);
+void FenClass::print_piece_placement() {
+	for (int i = 0; i < NUM_RANKS; i++) {
+		for (int j = 0; j < NUM_FILES; j++) {
+			std::print("{} ", this->piece_placement[i][j]);
+		}
+		std::println();
+	}
 }
