@@ -1,6 +1,6 @@
 #pragma once
 
-enum class File {
+enum class File : unsigned char {
     A, // File a -> index j = 0
     B,
     C,
@@ -11,7 +11,7 @@ enum class File {
     H,
 };
 
-enum class Rank {
+enum class Rank : unsigned char {
     R8, // Rank 8 -> index i = 0
     R7,
     R6,
@@ -23,6 +23,6 @@ enum class Rank {
 };
 
 typedef struct {
-    File file;
-    Rank rank;
+    File file : 3;
+    Rank rank : 3;
 } Square;

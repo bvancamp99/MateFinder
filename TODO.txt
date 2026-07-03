@@ -1,1 +1,39 @@
+Make move_buffer size 218?
+- https://chess.stackexchange.com/questions/4490/maximum-possible-movement-in-a-turn
 
+Work on attack table and piece definitions
+
+Have array of matrices for attack tables, index i is attack table for ply i
+- Then don't need to recalculate when undoing moves
+
+Found out std::array exists, it's the same thing as BasicBuffer lol
+
+Union for squares?
+- one byte
+
+https://www.lenchsam.com/post/bitboard-tutorial
+
+Use bitboard lookup tables and mask with ally piece bitboard to get pseudo legal move.
+
+NOTE: Can't do XOR below because that would roll true for lookup_table 0, ally_color_bitboard 1
+
+We want:
+0 + 0 => 0
+1 + 0 => 1
+0 + 1 => 0
+1 + 1 => 0
+
+A AND NOT(B)
+A & ~B
+
+knight_pseudo_legal = Knight::lookup_table[rank][file] & ~ally_color_bitboard
+
+king_pseudo_legal = King::lookup_table[rank][file] & ~ally_color_bitboard & ~opp_king_lookup_table
+
+Pawn mask with ally bitboard for normal move and & opp bitboard for capture, also need smth for en passant
+
+Different lookup table for black and white pawns
+- Only difference is that two-space move is on rank 2 for white and rank 7 for black
+
+Or maybe just a white_pawn/black_pawn mask for black and white pawns?
+- do two-space move for both in lookup table and mask rank 7 two-space for white and rank 2 two-space for black

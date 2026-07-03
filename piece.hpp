@@ -1,8 +1,14 @@
 #pragma once
 
+#include <vector>
+#include "basic_buffer.hpp"
+#include "board.hpp"
 #include "color.hpp"
+#include "square.hpp"
 
-enum class PieceType {
+#define OPP_COLOR(color) { color ^ 1 }
+
+enum class PieceType : unsigned char {
     King,
     Queen,
     Rook,
@@ -11,15 +17,25 @@ enum class PieceType {
     Pawn
 };
 
-// TODO: letter to color function
-
 class Piece {
 public:
-    char letter;
+	PieceType type;
+	Color color;
     Square square;
-    Color color;
-    Color opp_color;
-    PieceType type;
 
-    Piece(char letter, Square square);
+	Piece(PieceType type, Color color, Square square);
+};
+
+class King : Piece {
+public:
+	static bitboard_t lookup_table[NUM_RANKS][NUM_FILES];
+
+	King(Color color, Square square);
+};
+
+class Knight : Piece {
+public:
+	static bitboard_t lookup_table[NUM_RANKS][NUM_FILES];
+
+	Knight(Color color, Square square);
 };
