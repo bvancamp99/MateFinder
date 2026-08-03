@@ -1,14 +1,14 @@
 #pragma once
 
-#include <vector>
-#include "basic_buffer.hpp"
-#include "board.hpp"
+#include <cstdint>
 #include "color.hpp"
 #include "square.hpp"
 
 #define OPP_COLOR(color) { color ^ 1 }
 
-enum class PieceType : unsigned char {
+typedef uint64_t bitboard_t;
+
+enum class PieceType : uint8_t {
     King,
     Queen,
     Rook,
@@ -28,14 +28,30 @@ public:
 
 class King : Piece {
 public:
-	static bitboard_t lookup_table[NUM_RANKS][NUM_FILES];
+	static const bitboard_t lookup_table[NUM_SQUARES];
 
 	King(Color color, Square square);
 };
 
 class Knight : Piece {
 public:
-	static bitboard_t lookup_table[NUM_RANKS][NUM_FILES];
+	static const bitboard_t lookup_table[NUM_SQUARES];
 
 	Knight(Color color, Square square);
+};
+
+class WhitePawn : Piece {
+public:
+	static const bitboard_t push_lookup_table[NUM_SQUARES];
+	static const bitboard_t capture_lookup_table[NUM_SQUARES];
+
+	WhitePawn(Square square);
+};
+
+class BlackPawn : Piece {
+public:
+	static const bitboard_t push_lookup_table[NUM_SQUARES];
+	static const bitboard_t capture_lookup_table[NUM_SQUARES];
+
+	BlackPawn(Square square);
 };

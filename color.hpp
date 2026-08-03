@@ -1,6 +1,8 @@
 #pragma once
 
-enum class Color : unsigned char {
+#include <cstdint>
+
+enum class Color : uint8_t {
     White,
     Black
 };

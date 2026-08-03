@@ -26,10 +26,10 @@ int main(int argc, char* argv[]) {
     std::cin >> i;
     Color user_color = static_cast<Color>(i);
     if (user_color != Color::White && user_color != Color::Black) {
-        std::random_device rd; // Random seed
-        std::mt19937 gen(rd()); // Mersenne Twister engine
-        std::uniform_int_distribution<int> distrib(0, 1); // Range
-        user_color = static_cast<Color>(distrib(gen));
+        // Mersenne Twister engine with random seed
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(0, 1);
+        user_color = static_cast<Color>(dist(rng));
     }
 
     return 0;

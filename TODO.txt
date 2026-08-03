@@ -28,12 +28,21 @@ A & ~B
 
 knight_pseudo_legal = Knight::lookup_table[rank][file] & ~ally_color_bitboard
 
-king_pseudo_legal = King::lookup_table[rank][file] & ~ally_color_bitboard & ~opp_king_lookup_table
+king_pseudo_legal = King::lookup_table[rank][file] & ~ally_color_bitboard & ~opp_king_lookup_table[opp_king_rank][opp_king_file]
 
+en_passant_target_bitboard with up to one bit set to 1 for where capturing piece would land
+- either that or do more intuitive approach, i.e. bit set where en passant target is, then bitshift << 8 if target is black or >> 8 for white to be where capturing piece would land
+
+Two lookup tables for pawn? (pushes and captures)
+pawn_pseudo_legal = (push_lookup_table w/ bitwise operations) | (capture_lookup_table w/ bitwise operations)
+
+pawn_pseudo_legal = Pawn::lookup_table[rank][file] & ~ally_color_bitboard | en_passant_target_bitboard
 Pawn mask with ally bitboard for normal move and & opp bitboard for capture, also need smth for en passant
 
-Different lookup table for black and white pawns
-- Only difference is that two-space move is on rank 2 for white and rank 7 for black
+How to mask against two-space pawn moves?
+- Probably similar to how to mask against sliding moves from queen, rook, and bishop
+- Mask against one-space move first then use that result to help
 
-Or maybe just a white_pawn/black_pawn mask for black and white pawns?
-- do two-space move for both in lookup table and mask rank 7 two-space for white and rank 2 two-space for black
+Different lookup table for black and white pawns
+- Movement is the opposite direction
+- Also, two-space move is on rank 2 for white and rank 7 for black
